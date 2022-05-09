@@ -1,0 +1,5 @@
+.vscode
+token.json
+token*
+tree.*
+.DS_Store
