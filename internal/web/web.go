@@ -6,7 +6,6 @@ import (
 	"html/template"
 	"log"
 	"net/http"
-	"sort"
 
 	"github.com/pkg/browser"
 
@@ -17,11 +16,6 @@ var myDriveTree = make(map[string]*tree.MyDrive)
 var myRouter *mux.Router
 var startNodeId string
 var statistics stats
-
-type myPath struct {
-	Id   string
-	Name string
-}
 
 func handleRequests() {
 
@@ -56,24 +50,6 @@ func returnStats(w http.ResponseWriter, r *http.Request) {
 
 }
 
-// Get path from node to root
-func getCurrentPath(startId string) []myPath {
-
-	currentId := startId
-	currentPath := []myPath{}
-
-	for {
-		newNode := myPath{Id: currentId, Name: myDriveTree[currentId].Name}
-		currentPath = append([]myPath{newNode}, currentPath...)
-		if myDriveTree[currentId].IsRoot {
-			break
-		}
-		currentId = myDriveTree[currentId].Parent
-	}
-
-	return currentPath
-}
-
 func homePage(w http.ResponseWriter, r *http.Request) {
 
 	redirectUrl := fmt.Sprintf("/node/%s", startNodeId)
@@ -93,21 +69,17 @@ func returnNodeInfo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get current path of the choosen node
-	currentPath := getCurrentPath(id)
+	currentPath := tree.GetCurrentPath(myDriveTree, id)
+
+	// Get current node data
+	currentNode := myDriveTree[id]
 
 	// Get child list of the selected node
-	currentNode := myDriveTree[id]
-	childList := []tree.MyDrive{}
-
-	for _, child := range currentNode.Child {
-		childList = append(childList, *myDriveTree[child])
-	}
-	// Sort by size
-	sort.Slice(childList, func(i, j int) bool { return childList[i].Size > childList[j].Size })
+	childList := tree.GetChildList(myDriveTree, id)
 
 	// Prepare data for template
 	templateRender := struct {
-		CurrentPath []myPath
+		CurrentPath []tree.MyPath
 		CurrentNode tree.MyDrive
 		Child       []tree.MyDrive
 	}{
