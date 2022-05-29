@@ -32,6 +32,12 @@ $ drive-tree web
 
 Note: note that Docker is not able to open the browser for you. Follow the instructions on the screen to open the browser.
 
+### Beta - GUI interface
+After scraper option run: 
+```
+go run drive-tree.go gui
+```
+
 # Demo
 Run:
 
