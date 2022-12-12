@@ -3,7 +3,6 @@ package main
 import (
 	"drive-tree/internal/authentication"
 	"drive-tree/internal/datamng"
-	guimng "drive-tree/internal/gui"
 	"drive-tree/internal/tree"
 	"drive-tree/internal/web"
 	"flag"
@@ -27,8 +26,6 @@ func main() {
 		scraper()
 	} else if args[0] == "web" {
 		viewer()
-	} else if args[0] == "gui" {
-		gui()
 	} else {
 		usage()
 	}
@@ -66,17 +63,6 @@ func viewer() {
 	if myDriveStructure != nil {
 		// Create web server
 		web.Run(myDriveStructure, startNodeId)
-	}
-
-}
-
-func gui() {
-
-	myDriveStructure, startNodeId := datamng.LoadData()
-
-	if myDriveStructure != nil {
-		// Create web server
-		guimng.Run(myDriveStructure, startNodeId)
 	}
 
 }

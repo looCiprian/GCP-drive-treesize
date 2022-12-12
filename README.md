@@ -21,22 +21,7 @@ go run drive-tree.go scraper
 go run drive-tree.go web
 ```
 
-## Docker
-```
-docker build -t my-drive-tree-app .
-docker run -it --rm -v $(pwd):/drive-tree -p 8080:8080 --name my-running-app my-drive-tree-app
-
-$ drive-tree scraper
-$ drive-tree web
-```
-
-Note: note that Docker is not able to open the browser for you. Follow the instructions on the screen to open the browser.
-
-### Beta - GUI interface
-After scraper option run: 
-```
-go run drive-tree.go gui
-```
+Binaries available [here](https://github.com/looCiprian/GCP-drive-treesize/releases).
 
 # Demo
 Run:
@@ -82,3 +67,21 @@ To view the results in the browser.
 <p align="center">
   <img alt="Demo" src="images/demo-5.png" height="50%" width="50%">
 </p>
+
+## Docker
+```
+docker build -t my-drive-tree-app .
+docker run -it --rm -v $(pwd):/drive-tree -p 8080:8080 --name my-running-app my-drive-tree-app
+
+$ drive-tree scraper
+$ drive-tree web
+```
+
+Note: note that Docker is not able to open the browser for you. Follow the instructions on the screen to open the browser.
+
+## Beta - GUI interface
+After scraper option run: 
+```
+git checkout fyne
+go run drive-tree.go gui
+```
