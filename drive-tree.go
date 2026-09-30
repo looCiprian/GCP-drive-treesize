@@ -1,68 +1,34 @@
 package main
 
 import (
-	"drive-tree/internal/authentication"
-	"drive-tree/internal/datamng"
-	"drive-tree/internal/tree"
 	"drive-tree/internal/web"
 	"flag"
 	"fmt"
-	"log"
+	"os"
 )
 
 func main() {
 
+	addr := flag.String("addr", "127.0.0.1:8080", "address the web interface listens on (use :8080 inside Docker)")
+	noBrowser := flag.Bool("no-browser", false, "don't open the browser automatically")
 	flag.Usage = usage
 	flag.Parse()
 
-	args := flag.Args()
-
-	if len(args) < 1 {
+	// "scraper" and "web" used to be separate steps, now a single run does both
+	if arg := flag.Arg(0); arg != "" && arg != "scraper" && arg != "web" {
 		usage()
-		return
+		os.Exit(2)
 	}
 
-	if args[0] == "scraper" {
-		scraper()
-	} else if args[0] == "web" {
-		viewer()
-	} else {
-		usage()
-	}
-
+	web.Run(*addr, !*noBrowser)
 }
 
 func usage() {
 
 	fmt.Println("Usage:")
-	fmt.Println("\tdrive-tree scraper --> parse all your files")
-	fmt.Println("\tdrive-tree web --> view your files on web after scraper")
-
-}
-
-func scraper() {
-
-	srv := authentication.Authentication()
-
-	//startNodeId := "1NesnNegi27dNuYL2E92oWav0ZShCIimo"
-	myDriveStructure := tree.Run(srv)
-
-	err := datamng.SaveData(myDriveStructure)
-
-	if err != nil {
-		return
-	}
-	log.Println("\n\n\nAll files were successfully parsed...")
-	log.Println("}Use 'drive-tree web' to view your folder size on web")
-}
-
-func viewer() {
-
-	myDriveStructure, startNodeId := datamng.LoadData()
-
-	if myDriveStructure != nil {
-		// Create web server
-		web.Run(myDriveStructure, startNodeId)
-	}
+	fmt.Println("\tdrive-tree [flags] --> sign in, scan your files and view them in the browser")
+	fmt.Println()
+	fmt.Println("Flags:")
+	flag.PrintDefaults()
 
 }

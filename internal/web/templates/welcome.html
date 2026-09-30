@@ -1,0 +1,27 @@
+{{define "content"}}
+<style>
+    .hero { max-width: 620px; margin: 48px auto; text-align: center; padding: 40px 32px; }
+    .hero h1 { font-size: 1.9rem; margin-bottom: 12px; }
+    .hero p { color: var(--muted); margin: 0 auto 28px; max-width: 480px; }
+    .notes { list-style: none; padding: 0; margin: 32px 0 0; text-align: left; display: grid; gap: 12px; }
+    .notes li { padding: 12px 14px; background: var(--surface-2); border-radius: 8px; font-size: .9rem; }
+    .notes strong { display: block; }
+</style>
+
+<section class="card hero">
+    {{if .Error}}<div class="alert" role="alert">{{.Error}}</div>{{end}}
+    <h1>What's taking up space in your Drive?</h1>
+    <p>Sign in with Google and Drive Tree will scan your files and show you the size of every folder, the largest
+        files, and which file types use the most space.</p>
+    <a class="btn primary large" href="/login">Sign in with Google</a>
+
+    <ul class="notes">
+        <li><strong>Read-only access</strong>Drive Tree can only read file names and sizes. It can't open, change or
+            delete your files.</li>
+        <li><strong>Nothing leaves your computer</strong>Your data stays in memory and is gone when you close the app.
+            No files are written to disk.</li>
+        <li><strong>"Google hasn't verified this app"</strong>You may see this warning because the app isn't verified by
+            Google yet. Choose <em>Advanced</em>, then <em>Go to Drive Tree</em> to continue.</li>
+    </ul>
+</section>
+{{end}}

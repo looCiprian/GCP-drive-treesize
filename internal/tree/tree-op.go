@@ -17,12 +17,16 @@ func GetCurrentPath(myDriveTree map[string]*MyDrive, startId string) []MyPath {
 	currentPath := []MyPath{}
 
 	for {
-		newNode := MyPath{Id: currentId, Name: myDriveTree[currentId].Name}
-		currentPath = append([]MyPath{newNode}, currentPath...)
-		if myDriveTree[currentId].IsRoot {
+		node, ok := myDriveTree[currentId]
+		if !ok { // Broken parent chain, stop here
 			break
 		}
-		currentId = myDriveTree[currentId].Parent
+		newNode := MyPath{Id: currentId, Name: node.Name}
+		currentPath = append([]MyPath{newNode}, currentPath...)
+		if node.IsRoot {
+			break
+		}
+		currentId = node.Parent
 	}
 
 	return currentPath
@@ -49,12 +53,16 @@ func GetCurrentPathSting(myDriveTree map[string]*MyDrive, startId string) string
 	currentPath := []string{}
 
 	for {
-		newNode := []string{myDriveTree[currentId].Name}
-		currentPath = append(newNode, currentPath...)
-		if myDriveTree[currentId].IsRoot {
+		node, ok := myDriveTree[currentId]
+		if !ok { // Broken parent chain, stop here
 			break
 		}
-		currentId = myDriveTree[currentId].Parent
+		newNode := []string{node.Name}
+		currentPath = append(newNode, currentPath...)
+		if node.IsRoot {
+			break
+		}
+		currentId = node.Parent
 	}
 
 	return "/" + strings.Join(currentPath, "/")

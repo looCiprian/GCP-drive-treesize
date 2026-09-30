@@ -1,0 +1,313 @@
+{{define "layout"}}<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{.Title}} · Drive Tree</title>
+    <style>
+        :root {
+            --bg: #f6f7f9;
+            --surface: #ffffff;
+            --surface-2: #f0f2f5;
+            --border: #e2e5ea;
+            --text: #1d2330;
+            --muted: #636b7a;
+            --accent: #1a73e8;
+            --accent-hover: #1558b0;
+            --accent-soft: #e8f0fe;
+            --danger: #c5221f;
+            --danger-soft: #fce8e6;
+            --bar: #1a73e8;
+            --folder: #f4b400;
+            --radius: 10px;
+            --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .08);
+            color-scheme: light;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #111418;
+                --surface: #1a1e24;
+                --surface-2: #232830;
+                --border: #2e343d;
+                --text: #e6e9ee;
+                --muted: #9aa3b0;
+                --accent: #8ab4f8;
+                --accent-hover: #aecbfa;
+                --accent-soft: #1f2d42;
+                --danger: #f28b82;
+                --danger-soft: #3c2323;
+                --bar: #8ab4f8;
+                --shadow: none;
+                color-scheme: dark;
+            }
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        }
+
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        h1, h2 { margin: 0; line-height: 1.25; }
+        h1 { font-size: 1.5rem; }
+        h2 { font-size: 1.1rem; }
+        small, .muted { color: var(--muted); }
+
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 10px 24px;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            font-size: 1.05rem;
+            color: var(--text);
+        }
+
+        .brand:hover { text-decoration: none; }
+        .brand svg { width: 26px; height: 26px; }
+
+        .nav { display: flex; gap: 4px; }
+
+        .nav a {
+            padding: 6px 12px;
+            border-radius: 999px;
+            color: var(--muted);
+            font-weight: 500;
+        }
+
+        .nav a:hover { background: var(--surface-2); text-decoration: none; }
+        .nav a.active { background: var(--accent-soft); color: var(--accent); }
+
+        .spacer { flex: 1; }
+
+        .account {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            font-size: .875rem;
+        }
+
+        .quota { min-width: 160px; }
+        .quota .bar { margin-bottom: 2px; }
+
+        main {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card.flush { padding: 0; overflow: hidden; }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--surface);
+            color: var(--text);
+            font: inherit;
+            font-size: .875rem;
+            font-weight: 500;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .btn:hover { background: var(--surface-2); text-decoration: none; }
+
+        .btn.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: var(--surface);
+        }
+
+        .btn.primary:hover { background: var(--accent-hover); }
+        .btn.large { padding: 11px 22px; font-size: 1rem; }
+        .btn.ghost { border-color: transparent; background: transparent; color: var(--muted); }
+        .btn.ghost:hover { background: var(--surface-2); color: var(--text); }
+
+        form.inline { display: inline; margin: 0; }
+
+        .bar {
+            height: 6px;
+            border-radius: 999px;
+            background: var(--surface-2);
+            overflow: hidden;
+        }
+
+        .bar span {
+            display: block;
+            height: 100%;
+            min-width: 2px;
+            border-radius: 999px;
+            background: var(--bar);
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 8px;
+            background: var(--danger-soft);
+            color: var(--danger);
+            margin-bottom: 20px;
+        }
+
+        .icon { width: 20px; height: 20px; flex: none; vertical-align: middle; }
+        .k-folder { color: var(--folder); }
+        .k-image { color: #d93025; }
+        .k-video { color: #a142f4; }
+        .k-audio { color: #e8710a; }
+        .k-pdf { color: #ea4335; }
+        .k-sheet { color: #188038; }
+        .k-slides { color: #f9ab00; }
+        .k-doc { color: #4285f4; }
+        .k-archive { color: #80868b; }
+        .k-file { color: var(--muted); }
+
+        table { width: 100%; border-collapse: collapse; }
+
+        th, td {
+            padding: 10px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        tbody tr:last-child td { border-bottom: none; }
+        tbody tr:hover { background: var(--surface-2); }
+
+        th {
+            font-size: .75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            color: var(--muted);
+            background: var(--surface-2);
+            user-select: none;
+        }
+
+        th[data-sort] { cursor: pointer; }
+        th[data-sort]:hover { color: var(--text); }
+        th[aria-sort="ascending"]::after { content: " ▲"; }
+        th[aria-sort="descending"]::after { content: " ▼"; }
+        .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 12px;
+            margin: 0;
+        }
+
+        .metrics div {
+            padding: 12px 14px;
+            background: var(--surface-2);
+            border-radius: 8px;
+        }
+
+        .metrics dt { font-size: .8rem; color: var(--muted); }
+        .metrics dd { margin: 2px 0 0; font-size: 1.25rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+        footer {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 24px 32px;
+            font-size: .85rem;
+            color: var(--muted);
+        }
+
+        footer a { color: var(--muted); margin-right: 16px; }
+
+        @media (max-width: 700px) {
+            .topbar { flex-wrap: wrap; padding: 10px 16px; gap: 10px; }
+            .account .who, .quota { display: none; }
+            main { padding: 16px; }
+            th, td { padding: 8px 10px; }
+            .hide-sm { display: none; }
+        }
+    </style>
+</head>
+
+<body>
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+        <symbol id="i-folder" viewBox="0 0 24 24">
+            <path fill="currentColor" d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z" />
+        </symbol>
+        <symbol id="i-file" viewBox="0 0 24 24">
+            <path fill="currentColor" d="M6 2a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6H6zm7 1.5L18.5 9H13V3.5z" />
+        </symbol>
+    </svg>
+
+    <header class="topbar">
+        <a class="brand" href="/">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="3" y="13" width="4" height="8" rx="1" fill="#34a853" />
+                <rect x="10" y="8" width="4" height="13" rx="1" fill="#fbbc04" />
+                <rect x="17" y="3" width="4" height="18" rx="1" fill="#4285f4" />
+            </svg>
+            Drive Tree
+        </a>
+        {{if .Ready}}
+        <nav class="nav">
+            <a href="/" {{if eq .Page "browse"}}class="active" {{end}}>Browse</a>
+            <a href="/stats" {{if eq .Page "stats"}}class="active" {{end}}>Statistics</a>
+        </nav>
+        {{end}}
+        <div class="spacer"></div>
+        {{if .SignedIn}}
+        <div class="account">
+            {{if .Account.QuotaTotal}}
+            <div class="quota" title="Google storage used">
+                <div class="bar"><span style="width: {{percent .Account.QuotaUsed .Account.QuotaTotal}}%"></span></div>
+                <small>{{humanBytes .Account.QuotaUsed}} of {{humanBytes .Account.QuotaTotal}} used</small>
+            </div>
+            {{end}}
+            {{if .Account.Email}}<span class="who muted" title="{{.Account.Name}}">{{.Account.Email}}</span>{{end}}
+            {{if .Ready}}
+            <form class="inline" method="post" action="/rescan"><button class="btn" type="submit">↻ Rescan</button></form>
+            {{end}}
+            <form class="inline" method="post" action="/logout"><button class="btn ghost" type="submit">Sign out</button></form>
+        </div>
+        {{end}}
+    </header>
+
+    <main>
+        {{template "content" .}}
+    </main>
+
+    <footer>
+        <a href="https://drive.google.com/" target="_blank" rel="noopener">Open Google Drive</a>
+        <a href="https://one.google.com/storage" target="_blank" rel="noopener">Storage details by Google</a>
+    </footer>
+</body>
+
+</html>
+{{end}}
+
+{{define "icon"}}<svg class="icon k-{{.}}" aria-hidden="true"><use href="#i-{{if eq . "folder"}}folder{{else}}file{{end}}" /></svg>{{end}}

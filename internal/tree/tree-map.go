@@ -5,6 +5,8 @@ import (
 	"log"
 	"time"
 
+	"google.golang.org/api/googleapi"
+
 	"github.com/dustin/go-humanize"
 	"google.golang.org/api/drive/v2"
 )
@@ -39,12 +41,27 @@ func init() {
 
 }
 
-func Run(d *drive.Service) map[string]*MyDrive {
+// Metadata fields requested from the API, everything else is skipped to speed up the scan
+const fileFields = "id,title,fileSize,mimeType,parents(id),alternateLink"
+
+// Number of attempts for each API call before giving up
+const maxAttempts = 5
+
+// Run fetches all your files and builds the tree. progress is called with the
+// number of items fetched so far. It returns the tree and the root node id.
+func Run(d *drive.Service, progress func(fetched int)) (map[string]*MyDrive, string, error) {
+
+	// Start from a clean state, so the tree can be rebuilt on rescan
+	myDriveTree = make(map[string]*MyDrive)
+	filesList = nil
+	rootNodeId = ""
 
 	log.Println("Starting get all your files...")
 
 	// Get all files that are owned by you using Google Drive API
-	allFiles(d)
+	if err := allFiles(d, progress); err != nil {
+		return nil, "", err
+	}
 
 	//log.SetFlags(log.Ldate | log.Ltime)
 	log.Println("Creating the tree...")
@@ -76,7 +93,10 @@ func Run(d *drive.Service) map[string]*MyDrive {
 	}
 
 	// Get the root node info
-	fileInfo := getRootInfo(d)
+	fileInfo, err := getRootInfo(d)
+	if err != nil {
+		return nil, "", err
+	}
 
 	// Create root node
 	myDriveTree[fileInfo.Id] = &MyDrive{
@@ -94,16 +114,17 @@ func Run(d *drive.Service) map[string]*MyDrive {
 	// Ingesting the files and creates the tree
 	fileIngestor(d)
 
-	return myDriveTree
+	return myDriveTree, rootNodeId, nil
 }
 
 // Get all files from Google Drive
-func allFiles(d *drive.Service) error {
+func allFiles(d *drive.Service, progress func(fetched int)) error {
 
 	pageToken := ""
 	for {
 		// Get all files in a specifc nodeId
-		q := d.Files.List().IncludeItemsFromAllDrives(false).SupportsAllDrives(false).Q("'me' in owners and trashed = false").MaxResults(1000)
+		q := d.Files.List().IncludeItemsFromAllDrives(false).SupportsAllDrives(false).Q("'me' in owners and trashed = false").MaxResults(1000).
+			Fields("nextPageToken", googleapi.Field("items("+fileFields+")"))
 		// If we have a pageToken set, apply it to the query
 		if pageToken != "" {
 			q = q.PageToken(pageToken)
@@ -111,22 +132,20 @@ func allFiles(d *drive.Service) error {
 
 		// Get the files
 		var r *drive.FileList
-		for { // Loop to manage errors
-			var err error
+		err := retry(func() (err error) {
 			r, err = q.Do()
-			if err != nil {
-				fmt.Printf("An error occurred: %v\n", err)
-				fmt.Printf("Retrying in 2 seconds...\n")
-				time.Sleep(time.Second * 2)
-			} else {
-				//log.SetFlags(log.Ldate | log.Ltime)
-				log.Println("Getting data...")
-				break
-			}
+			return err
+		})
+		if err != nil {
+			return err
 		}
 
 		// Add the files to the list
 		filesList = append(filesList, r.Items...)
+		log.Printf("Getting data... %d items so far", len(filesList))
+		if progress != nil {
+			progress(len(filesList))
+		}
 
 		pageToken = r.NextPageToken
 		if pageToken == "" {
@@ -208,28 +227,41 @@ func updateParentInfoRecursive(nodeId string, size int64, isDir bool) {
 	}
 }
 
-func getRootInfo(srv *drive.Service) *drive.File {
-	//1NesnNegi27dNuYL2E92oWav0ZShCIimo
+func getRootInfo(srv *drive.Service) (*drive.File, error) {
 
 	var fileRootInfo *drive.File
+	err := retry(func() (err error) {
+		fileRootInfo, err = srv.Files.Get("root").Fields(fileFields).Do()
+		return err
+	})
+	return fileRootInfo, err
+}
 
-	for {
-		fileInfo, err := srv.Files.Get("root").Do()
-
-		if err != nil {
-			fmt.Printf("An error occurred: %v\n", err)
-			fmt.Printf("Retrying in 2 seconds...\n")
-			time.Sleep(time.Second * 2)
-		} else {
-			fileRootInfo = fileInfo
-			break
+// Call f until it succeeds, waiting between attempts
+func retry(f func() error) error {
+	var err error
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		if err = f(); err == nil {
+			return nil
+		}
+		log.Printf("An error occurred: %v", err)
+		if attempt < maxAttempts {
+			log.Printf("Retrying in %d seconds...", attempt*2)
+			time.Sleep(time.Duration(attempt*2) * time.Second)
 		}
 	}
-
-	return fileRootInfo
+	return fmt.Errorf("giving up after %d attempts: %w", maxAttempts, err)
 }
 
 func getHumanBytes(bytes uint64) string {
 
 	return humanize.IBytes(bytes)
+}
+
+// Format a size in bytes, e.g. 1.5 GiB
+func HumanBytes(bytes int64) string {
+	if bytes < 0 {
+		bytes = 0
+	}
+	return getHumanBytes(uint64(bytes))
 }

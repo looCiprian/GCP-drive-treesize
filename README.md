@@ -5,83 +5,42 @@ Drive tree is a desktop application that allows you to browse your Google Drive 
 </p>
 
 # Features
-The tool is composed of two main parts:
- - scraper: it purpose is to get your files metadata from Google Drive.
- - web: it purpose is to show the files tree in a web browser.
+ - One command: sign in, scan and browse, all from your browser.
+ - Sign-in is automatic: approve access on the Google page and you're redirected back to the app, no codes to copy.
+ - No files are written to disk: your token and file data live in memory only and are gone when you close the app.
+ - Browse folders sorted by size, with the share of each item in its folder, a name filter and sortable columns.
+ - Statistics: space by file type and your largest files.
+ - Shows your Google storage quota, and lets you rescan or sign out at any time.
 
 # How to use
-
-### Scraper
 ```
-go run drive-tree.go scraper
-```
-
-### Web
-```
-go run drive-tree.go web
+go run drive-tree.go
 ```
 
 Binaries available [here](https://github.com/looCiprian/GCP-drive-treesize/releases).
 
-# Demo
-Run:
-
-```
-go run drive-tree.go scraper
-```
-
-Your browser will be opened with the following warning (accept the warning since the application is not approved by Google yet):
+Your browser opens on the Google sign-in page. Google may warn you that the app isn't verified yet: choose *Advanced*, then continue.
 
 <p align="center">
   <img alt="Demo" src="images/demo-1.png" height="50%" width="50%">
 </p>
 
-Press the confirm button on the right to grant permission to the application
+Press the confirm button to grant read-only access to your files metadata.
 
 <p align="center">
   <img alt="Demo" src="images/demo-2.png" height="50%" width="50%">
 </p>
 
-Once authenticated copy the authentication code
+You're sent back to the app, which scans your Drive and shows the results when done.
 
-<p align="center">
-  <img alt="Demo" src="images/demo-3.png" height="50%" width="50%">
-</p>
-
-Paste the authentication code in the terminal
-
-<p align="center">
-  <img alt="Demo" src="images/demo-4.png" height="50%" width="50%">
-</p>
-
-The application will now be running.
-
-Once finished, run:
-
-```
-go run drive-tree.go web
-```
-
-To view the results in the browser.
-
-<p align="center">
-  <img alt="Demo" src="images/demo-5.png" height="50%" width="50%">
-</p>
+Flags:
+ - `-no-browser`: don't open the browser, just print the link.
+ - `-addr`: address to listen on (default `127.0.0.1:8080`). The port must stay `8080`, it's the one registered for the Google sign-in redirect.
 
 ## Docker
 ```
 docker build -t my-drive-tree-app .
-docker run -it --rm -v $(pwd):/drive-tree -p 8080:8080 --name my-running-app my-drive-tree-app
-
-$ drive-tree scraper
-$ drive-tree web
+docker run -it --rm -p 8080:8080 --name my-running-app my-drive-tree-app
 ```
 
-Note: note that Docker is not able to open the browser for you. Follow the instructions on the screen to open the browser.
-
-## Beta - GUI interface
-After scraper option run: 
-```
-git checkout fyne
-go run drive-tree.go gui
-```
+Docker can't open the browser for you: open the link printed on the screen.

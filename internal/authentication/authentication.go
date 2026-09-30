@@ -2,105 +2,74 @@ package authentication
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
-	"log"
-	"net/http"
-	"os"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
 
-	"github.com/pkg/browser"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/drive/v2"
 	"google.golang.org/api/option"
 )
 
-func Authentication() *drive.Service {
+// RedirectURL is the OAuth2 callback registered for this application.
+// The local web server must be reachable on this address.
+const RedirectURL = "http://localhost:8080/oauth2callback"
 
-	// Clean file
-	_ = os.Remove("token.json")
-	ctx := context.Background()
-
-	// Start web handler to handle authentication response
-	serverCallback := callbackListener()
-
-	// If modifying these scopes, delete your previously saved token.json.
-	config := &oauth2.Config{
+// Config returns the OAuth2 configuration used to read Google Drive metadata.
+func Config() *oauth2.Config {
+	return &oauth2.Config{
 		ClientID:     "99542254178-s7hc2ejf0h8n57lk1he7fiu78stbrfup.apps.googleusercontent.com",
 		ClientSecret: "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",
 		Scopes:       []string{"https://www.googleapis.com/auth/drive.metadata.readonly"},
 		Endpoint:     google.Endpoint,
-		//RedirectURL:  "urn:ietf:wg:oauth:2.0:oob",
-		RedirectURL: "http://localhost:8080/oauth2callback",
+		RedirectURL:  RedirectURL,
 	}
-	client := getClient(config)
-
-	srv, err := drive.NewService(ctx, option.WithHTTPClient(client))
-	if err != nil {
-		log.Fatalf("Unable to retrieve Drive client: %v", err)
-	}
-
-	// Close server to handle authentication response
-	closeCallbackListener(serverCallback)
-
-	return srv
 }
 
-// Retrieve a token, saves the token, then returns the generated client.
-func getClient(config *oauth2.Config) *http.Client {
-	// The file token.json stores the user's access and refresh tokens, and is
-	// created automatically when the authorization flow completes for the first
-	// time.
-	tokFile := "token.json"
-	tok, err := tokenFromFile(tokFile)
-	if err != nil {
-		tok = getTokenFromWeb(config)
-		saveToken(tokFile, tok)
-	}
-	return config.Client(context.Background(), tok)
+// Flow holds the state of a single sign-in attempt: the anti-CSRF state
+// value and the PKCE verifier used when exchanging the authorization code.
+type Flow struct {
+	State    string
+	verifier string
 }
 
-// Request a token from the web, then returns the retrieved token.
-func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
-	authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
-	errBrowser := browser.OpenURL(authURL)
-	if errBrowser != nil {
-		fmt.Printf("Go to the following link in your browser then type the "+
-			"authorization code: \n%v\n", authURL)
-	}
-
-	fmt.Println("After authentication is completed, enter the authorization code here and press enter:")
-	var authCode string
-	if _, err := fmt.Scan(&authCode); err != nil {
-		log.Fatalf("Unable to read authorization code %v", err)
-	}
-
-	tok, err := config.Exchange(context.TODO(), authCode)
-	if err != nil {
-		log.Fatalf("Unable to retrieve token from web %v", err)
-	}
-	return tok
-}
-
-// Retrieves a token from a local file.
-func tokenFromFile(file string) (*oauth2.Token, error) {
-	f, err := os.Open(file)
+// NewFlow starts a new sign-in attempt with fresh random values.
+func NewFlow() (*Flow, error) {
+	state, err := randomString()
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
-	tok := &oauth2.Token{}
-	err = json.NewDecoder(f).Decode(tok)
-	return tok, err
+	verifier, err := randomString()
+	if err != nil {
+		return nil, err
+	}
+	return &Flow{State: state, verifier: verifier}, nil
 }
 
-// Saves a token to a file path.
-func saveToken(path string, token *oauth2.Token) {
-	fmt.Printf("Saving credential file to: %s\n", path)
-	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
-	if err != nil {
-		log.Fatalf("Unable to cache oauth token: %v", err)
+// AuthURL returns the Google consent page URL for this flow.
+func (f *Flow) AuthURL(config *oauth2.Config) string {
+	sum := sha256.Sum256([]byte(f.verifier))
+	return config.AuthCodeURL(f.State, oauth2.AccessTypeOffline,
+		oauth2.SetAuthURLParam("code_challenge", base64.RawURLEncoding.EncodeToString(sum[:])),
+		oauth2.SetAuthURLParam("code_challenge_method", "S256"))
+}
+
+// Exchange trades the authorization code received on the callback for a token.
+func (f *Flow) Exchange(ctx context.Context, config *oauth2.Config, code string) (*oauth2.Token, error) {
+	return config.Exchange(ctx, code, oauth2.SetAuthURLParam("code_verifier", f.verifier))
+}
+
+// NewService creates a Drive client from a token. The token is kept in memory
+// only and refreshed automatically by the oauth2 client when needed.
+func NewService(ctx context.Context, config *oauth2.Config, tok *oauth2.Token) (*drive.Service, error) {
+	return drive.NewService(ctx, option.WithHTTPClient(config.Client(ctx, tok)))
+}
+
+func randomString() (string, error) {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
 	}
-	defer f.Close()
-	json.NewEncoder(f).Encode(token)
+	return base64.RawURLEncoding.EncodeToString(b), nil
 }

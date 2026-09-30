@@ -1,0 +1,136 @@
+{{define "content"}}
+<style>
+    .crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-bottom: 16px; font-size: .9rem; }
+    .crumbs .sep { color: var(--muted); }
+    .crumbs span:last-child { color: var(--text); font-weight: 500; }
+    .summary-head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+    .summary-head h1 { flex: 1; min-width: 200px; word-break: break-word; }
+    .summary-head .icon { width: 32px; height: 32px; }
+    .toolbar { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+    .toolbar input {
+        flex: 1; max-width: 320px; padding: 7px 12px; font: inherit; font-size: .9rem;
+        color: var(--text); background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+    }
+    .toolbar input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+    td.name a { display: flex; align-items: center; gap: 10px; color: var(--text); word-break: break-word; }
+    td.name a:hover { color: var(--accent); text-decoration: none; }
+    td.share { width: 22%; min-width: 120px; }
+    td.share small { display: block; font-variant-numeric: tabular-nums; }
+    td.open { width: 1%; }
+    .empty { padding: 40px; text-align: center; }
+</style>
+
+<nav class="crumbs" aria-label="Path">
+    {{range $i, $p := .CurrentPath}}
+    {{if $i}}<span class="sep">›</span>{{end}}
+    {{if eq $p.Id $.CurrentNode.Id}}<span>{{$p.Name}}</span>{{else}}<a href="/node/{{$p.Id}}">{{$p.Name}}</a>{{end}}
+    {{end}}
+</nav>
+
+<section class="card">
+    <div class="summary-head">
+        {{template "icon" (kind .CurrentNode.MimeType .CurrentNode.IsDir)}}
+        <h1>{{.CurrentNode.Name}}</h1>
+        {{if .ParentId}}<a class="btn" href="/node/{{.ParentId}}">↑ Up</a>{{end}}
+        {{if .CurrentNode.Link}}<a class="btn" href="{{.CurrentNode.Link}}" target="_blank" rel="noopener">Open in
+            Drive ↗</a>{{end}}
+    </div>
+    <dl class="metrics">
+        <div><dt>Total size</dt><dd>{{.CurrentNode.HumanSize}}</dd></div>
+        {{if .CurrentNode.IsDir}}
+        <div><dt>Files inside</dt><dd>{{.CurrentNode.NumberOfFiles}}</dd></div>
+        <div><dt>Folders here</dt><dd>{{.Folders}}</dd></div>
+        <div><dt>Files here</dt><dd>{{.Files}}</dd></div>
+        {{else}}
+        <div><dt>Type</dt><dd style="font-size:1rem; word-break: break-all;">{{.CurrentNode.MimeType}}</dd></div>
+        {{end}}
+    </dl>
+</section>
+
+{{if .CurrentNode.IsDir}}
+<section class="card flush">
+    {{if .Rows}}
+    <div class="toolbar">
+        <input type="search" id="filter" placeholder="Filter by name…" aria-label="Filter by name" autocomplete="off">
+        <small id="count">{{len .Rows}} items</small>
+    </div>
+    <table id="listing">
+        <thead>
+            <tr>
+                <th data-sort="name">Name</th>
+                <th data-sort="size" class="num" aria-sort="descending">Size</th>
+                <th class="hide-sm">Share of folder</th>
+                <th data-sort="files" class="num hide-sm">Files</th>
+                <th class="hide-sm"></th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Rows}}
+            <tr data-name="{{lower .Name}}" data-size="{{.Size}}" data-files="{{.NumberOfFiles}}">
+                <td class="name">
+                    {{if .IsDir}}
+                    <a href="/node/{{.Id}}">{{template "icon" "folder"}}<span>{{.Name}}</span></a>
+                    {{else}}
+                    <a href="{{.Link}}" target="_blank" rel="noopener" title="Open in Google Drive">{{template "icon"
+                        (kind .MimeType .IsDir)}}<span>{{.Name}}</span></a>
+                    {{end}}
+                </td>
+                <td class="num">{{.HumanSize}}</td>
+                <td class="share hide-sm">
+                    <div class="bar"><span style="width: {{printf "%.1f" .Percent}}%"></span></div>
+                    <small>{{printf "%.1f" .Percent}}%</small>
+                </td>
+                <td class="num hide-sm">{{if .IsDir}}{{.NumberOfFiles}}{{else}}<span class="muted">—</span>{{end}}</td>
+                <td class="open hide-sm">{{if .Link}}<a class="btn ghost" href="{{.Link}}" target="_blank" rel="noopener"
+                        title="Open in Google Drive" aria-label="Open {{.Name}} in Google Drive">↗</a>{{end}}</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    <p class="empty muted" id="no-match" hidden>No items match your filter.</p>
+    {{else}}
+    <p class="empty muted">This folder is empty.</p>
+    {{end}}
+</section>
+
+<script>
+    (function () {
+        var table = document.getElementById("listing");
+        if (!table) return;
+        var tbody = table.tBodies[0];
+        var rows = Array.prototype.slice.call(tbody.rows);
+        var filter = document.getElementById("filter");
+        var count = document.getElementById("count");
+        var noMatch = document.getElementById("no-match");
+
+        filter.addEventListener("input", function () {
+            var q = filter.value.trim().toLowerCase();
+            var shown = 0;
+            rows.forEach(function (r) {
+                var match = r.dataset.name.indexOf(q) !== -1;
+                r.hidden = !match;
+                if (match) shown++;
+            });
+            count.textContent = q ? shown + " of " + rows.length + " items" : rows.length + " items";
+            noMatch.hidden = shown !== 0;
+        });
+
+        table.querySelectorAll("th[data-sort]").forEach(function (th) {
+            th.addEventListener("click", function () {
+                var key = th.dataset.sort;
+                var desc = th.getAttribute("aria-sort") !== "descending";
+                if (key === "name" && !th.hasAttribute("aria-sort")) desc = false;
+                table.querySelectorAll("th[data-sort]").forEach(function (o) { o.removeAttribute("aria-sort"); });
+                th.setAttribute("aria-sort", desc ? "descending" : "ascending");
+                rows.sort(function (a, b) {
+                    var x = a.dataset[key], y = b.dataset[key];
+                    var c = key === "name" ? x.localeCompare(y) : Number(x) - Number(y);
+                    return desc ? -c : c;
+                });
+                rows.forEach(function (r) { tbody.appendChild(r); });
+            });
+        });
+    })();
+</script>
+{{end}}
+{{end}}
